@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import api from '../api'
 
-export default function Dashboard(){
+export default function Dashboard() {
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
 
   useEffect(() => {
     async function fetchStats() {
@@ -57,8 +59,8 @@ export default function Dashboard(){
         <div className="card">
           <h3 className="mb-4">Quick Actions</h3>
           <div style={{ display: 'flex', gap: 12 }}>
-            <button className="primary" onClick={() => window.location.href='/challans'}>Create New Challan</button>
-            <button className="secondary" onClick={() => window.location.href='/customers'}>Add Customer</button>
+            <button className="primary" onClick={() => navigate('/challans')}>Create New Challan</button>
+            <button className="secondary" onClick={() => navigate('/customers')}>Add Customer</button>
           </div>
         </div>
         <div className="card">

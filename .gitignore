@@ -6,3 +6,6 @@ build/
 /.cache
 coverage/
 *.log
+.env.*
+!.env.example
+*.db

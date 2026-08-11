@@ -67,17 +67,39 @@ router.put('/:id', authenticate, authorize(['Admin','Sales']), async (req: AuthR
   }
 });
 
-router.post('/:id/followups', authenticate, authorize(['Admin','Sales']), async (req: AuthRequest, res) => {
+router.post('/:id/followups', authenticate, authorize(['Admin', 'Sales']), async (req: AuthRequest, res) => {
   const id = req.params.id;
   const { note, followupDate } = req.body;
   if (!note) return res.status(422).json({ success: false, message: 'Note is required', errors: [] });
   try {
-    const cust = await prisma.customer.findUnique({ where: { id } });
-    if (!cust) return res.status(404).json({ success: false, message: 'Customer not found', errors: [] });
-    const fu = await prisma.customerFollowup.create({ data: { customerId: id, userId: req.user.id, note, followupDate: followupDate ? new Date(followupDate) : null } });
+    const fu = await prisma.$transaction(async (tx) => {
+      const cust = await tx.customer.findUnique({ where: { id } });
+      if (!cust) throw { status: 404, message: 'Customer not found' };
+
+      const fuDate = followupDate ? new Date(followupDate) : null;
+      const created = await tx.customerFollowup.create({
+        data: {
+          customerId: id,
+          userId: req.user.id,
+          note,
+          followupDate: fuDate
+        }
+      });
+
+      // Update customer's next followup date
+      if (fuDate) {
+        await tx.customer.update({
+          where: { id },
+          data: { followUpDate: fuDate }
+        });
+      }
+
+      return created;
+    });
     res.status(201).json({ success: true, data: fu });
-  } catch (err) {
+  } catch (err: any) {
     console.error(err);
+    if (err.status) return res.status(err.status).json({ success: false, message: err.message, errors: [] });
     res.status(500).json({ success: false, message: 'Server error', errors: [] });
   }
 });
