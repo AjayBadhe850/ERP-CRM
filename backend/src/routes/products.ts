@@ -48,9 +48,10 @@ router.get('/:id', authenticate, authorize(['Admin','Warehouse']), async (req: A
 
 router.put('/:id', authenticate, authorize(['Admin','Warehouse']), async (req: AuthRequest, res) => {
   const id = req.params.id;
-  const { name, sku, category, unitPrice, minStockAlert, location } = req.body;
+  const { name, sku, category, unitPrice, currentStock, minStockAlert, location } = req.body;
+  if (currentStock !== undefined && currentStock < 0) return res.status(422).json({ success: false, message: 'Invalid currentStock', errors: [] });
   try {
-    const updated = await prisma.product.update({ where: { id }, data: { name, sku, category, unitPrice: unitPrice as any, minStockAlert, location } });
+    const updated = await prisma.product.update({ where: { id }, data: { name, sku, category, unitPrice: unitPrice as any, currentStock, minStockAlert, location } });
     res.json({ success: true, data: updated });
   } catch (err: any) {
     console.error(err);

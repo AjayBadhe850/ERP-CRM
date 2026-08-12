@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import api from '../api'
+import CustomerForm from './CustomerForm'
 
 export default function CustomerDetails() {
   const { id } = useParams()
@@ -8,6 +9,8 @@ export default function CustomerDetails() {
   const [note, setNote] = useState('')
   const [followupDate, setFollowupDate] = useState('')
   const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState(false)
+  const [showFollowupForm, setShowFollowupForm] = useState(true)
 
   async function load() {
     try {
@@ -42,7 +45,13 @@ export default function CustomerDetails() {
     <div>
       <div className="flex justify-between items-center mb-4">
         <Link to="/customers" style={{ color: 'var(--primary)', textDecoration: 'none' }}>&larr; Back to Customers</Link>
-        <div className="flex gap-2">
+        <div className="flex gap-2" style={{ flexWrap: 'wrap' }}>
+          <button className="secondary" onClick={() => setEditing((value) => !value)}>
+            {editing ? 'Close Edit' : 'Edit Customer'}
+          </button>
+          <button className="primary" onClick={() => setShowFollowupForm((value) => !value)}>
+            {showFollowupForm ? 'Hide Follow-up Note' : 'Add Follow-up Note'}
+          </button>
           <span className={`badge badge-${customer.status === 'Active' ? 'success' : customer.status === 'Lead' ? 'info' : 'warning'}`}>
             {customer.status}
           </span>
@@ -74,24 +83,34 @@ export default function CustomerDetails() {
             </div>
           </div>
 
-          <div className="card">
-            <h3 className="mb-4">Add Follow-up</h3>
-            <form onSubmit={addFollowup}>
-              <textarea 
-                placeholder="Follow-up notes..." 
-                value={note} 
-                onChange={e => setNote(e.target.value)}
-                style={{ height: 100 }}
-              />
-              <div className="flex gap-4 items-center">
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Next Follow-up Date</label>
-                  <input type="date" value={followupDate} onChange={e => setFollowupDate(e.target.value)} />
+          {editing && (
+            <CustomerForm
+              customer={customer}
+              onSaved={load}
+              onCancel={() => setEditing(false)}
+            />
+          )}
+
+          {showFollowupForm && (
+            <div className="card">
+              <h3 className="mb-4">Add Follow-up Note</h3>
+              <form onSubmit={addFollowup}>
+                <textarea 
+                  placeholder="Follow-up notes..." 
+                  value={note} 
+                  onChange={e => setNote(e.target.value)}
+                  style={{ height: 100 }}
+                />
+                <div className="flex gap-4 items-center">
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Next Follow-up Date</label>
+                    <input type="date" value={followupDate} onChange={e => setFollowupDate(e.target.value)} />
+                  </div>
+                  <button type="submit" className="primary" style={{ height: 42 }}>Add Note</button>
                 </div>
-                <button type="submit" className="primary" style={{ height: 42 }}>Add Note</button>
-              </div>
-            </form>
-          </div>
+              </form>
+            </div>
+          )}
         </div>
 
         <div className="card">

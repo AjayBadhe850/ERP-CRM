@@ -100,5 +100,6 @@ model ChallanItem {
   sku         String
   unitPrice   Decimal
   quantity    Int
+  productSnapshot Json?
   createdAt   DateTime @default(now())
 }

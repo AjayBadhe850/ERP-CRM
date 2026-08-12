@@ -1,8 +1,7 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import api from '../api'
 
-export default function ProductForm({ onSaved }: any){
-  const [formData, setFormData] = useState({
+const emptyForm = {
     name: '',
     sku: '',
     category: '',
@@ -10,9 +9,30 @@ export default function ProductForm({ onSaved }: any){
     currentStock: 0,
     minStockAlert: 5,
     location: ''
-  })
+  }
+
+export default function ProductForm({ onSaved, product, onCancel }: any){
+  const [formData, setFormData] = useState(emptyForm)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (product) {
+      setFormData({
+        name: product.name || '',
+        sku: product.sku || '',
+        category: product.category || '',
+        unitPrice: Number(product.unitPrice) || 0,
+        currentStock: Number(product.currentStock) || 0,
+        minStockAlert: Number(product.minStockAlert) || 0,
+        location: product.location || ''
+      })
+      setError('')
+      return
+    }
+
+    setFormData(emptyForm)
+  }, [product])
 
   async function submit(e: React.FormEvent){
     e.preventDefault()
@@ -23,12 +43,14 @@ export default function ProductForm({ onSaved }: any){
     setError('')
     setLoading(true)
     try{
-      await api.post('/products', formData)
-      setFormData({
-        name: '', sku: '', category: '', unitPrice: 0,
-        currentStock: 0, minStockAlert: 5, location: ''
-      })
+      if (product?.id) {
+        await api.put(`/products/${product.id}`, formData)
+      } else {
+        await api.post('/products', formData)
+      }
+      setFormData(emptyForm)
       onSaved && onSaved()
+      onCancel && onCancel()
     }catch(e:any){ 
       setError(e?.response?.data?.message || 'Error saving product')
     } finally {
@@ -43,7 +65,12 @@ export default function ProductForm({ onSaved }: any){
 
   return (
     <form onSubmit={submit} className="card">
-      <h3 className="mb-4">New Product</h3>
+      <div className="flex justify-between items-center mb-4">
+        <h3 style={{ margin: 0 }}>{product ? 'Edit Product' : 'Add Product'}</h3>
+        {product && (
+          <button type="button" className="secondary" onClick={onCancel}>Cancel</button>
+        )}
+      </div>
       {error && <div className="error mb-4">{error}</div>}
       
       <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Product Name*</label>
@@ -74,8 +101,11 @@ export default function ProductForm({ onSaved }: any){
         </div>
       </div>
 
+      <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Location</label>
+      <input name="location" placeholder="Warehouse location" value={formData.location} onChange={handleChange} />
+
       <button type="submit" className="primary" style={{ width: '100%' }} disabled={loading}>
-        {loading ? 'Saving...' : 'Create Product'}
+        {loading ? 'Saving...' : product ? 'Update Product' : 'Create Product'}
       </button>
     </form>
   )

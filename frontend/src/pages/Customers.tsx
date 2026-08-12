@@ -7,6 +7,7 @@ export default function Customers(){
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [editingCustomer, setEditingCustomer] = useState<any>(null)
 
   async function load(){
     setLoading(true)
@@ -32,6 +33,7 @@ export default function Customers(){
             style={{ width: 240, marginBottom: 0 }}
           />
           <button className="primary" onClick={load}>Search</button>
+          <button className="secondary" onClick={() => setEditingCustomer(null)}>Add Customer</button>
         </div>
       </div>
 
@@ -67,7 +69,10 @@ export default function Customers(){
                       </span>
                     </td>
                     <td>
-                      <Link to={`/customers/${c.id}`} style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: 500 }}>View Details &rarr;</Link>
+                      <div className="flex gap-2" style={{ flexWrap: 'wrap' }}>
+                        <button className="secondary" style={{ padding: '6px 10px', fontSize: 12 }} onClick={() => setEditingCustomer(c)}>Edit Customer</button>
+                        <Link to={`/customers/${c.id}`} style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: 500 }}>View Details &rarr;</Link>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -77,7 +82,11 @@ export default function Customers(){
         </div>
         
         <div>
-          <CustomerForm onSaved={load} />
+          <CustomerForm
+            onSaved={load}
+            customer={editingCustomer}
+            onCancel={() => setEditingCustomer(null)}
+          />
         </div>
       </div>
     </div>

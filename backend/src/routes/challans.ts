@@ -8,6 +8,19 @@ function generateChallanNumber() {
   return 'CH-' + Date.now();
 }
 
+function buildProductSnapshot(prod: any) {
+  return {
+    id: prod.id,
+    name: prod.name,
+    sku: prod.sku,
+    category: prod.category,
+    unitPrice: String(prod.unitPrice),
+    currentStock: prod.currentStock,
+    minStockAlert: prod.minStockAlert,
+    location: prod.location
+  };
+}
+
 // List challans
 router.get('/', authenticate, authorize(['Admin','Sales','Accounts','Warehouse']), async (req: AuthRequest, res) => {
   const page = Math.max(1, parseInt((req.query.page as string) || '1'));
@@ -39,6 +52,14 @@ router.post('/', authenticate, authorize(['Admin', 'Sales']), async (req: AuthRe
   try {
     const full = await prisma.$transaction(async (tx) => {
       const challanNumber = generateChallanNumber();
+      const products = await Promise.all(items.map((it: any) => tx.product.findUnique({ where: { id: it.productId } })));
+
+      products.forEach((prod, index) => {
+        if (!prod) {
+          throw { status: 422, message: `Invalid product ${items[index].productId}` };
+        }
+      });
+
       const created = await tx.challan.create({
         data: {
           challanNumber,
@@ -49,8 +70,9 @@ router.post('/', authenticate, authorize(['Admin', 'Sales']), async (req: AuthRe
         }
       });
 
-      for (const it of items) {
-        const prod = await tx.product.findUnique({ where: { id: it.productId } });
+      for (let index = 0; index < items.length; index += 1) {
+        const it = items[index];
+        const prod = products[index];
         if (!prod) {
           throw { status: 422, message: `Invalid product ${it.productId}` };
         }
@@ -61,7 +83,8 @@ router.post('/', authenticate, authorize(['Admin', 'Sales']), async (req: AuthRe
             productName: prod.name,
             sku: prod.sku,
             unitPrice: prod.unitPrice as any,
-            quantity: it.quantity
+            quantity: it.quantity,
+            productSnapshot: buildProductSnapshot(prod) as any
           }
         });
       }
@@ -94,27 +117,38 @@ router.post('/:id/confirm', authenticate, authorize(['Admin', 'Sales']), async (
       if (!ch) throw { status: 404, message: 'Challan not found' };
       if (ch.status !== 'Draft') throw { status: 409, message: 'Only Draft can be confirmed' };
 
-      // reduce stock and create movements atomically
-      for (const it of ch.items) {
-        // Use updateMany to ensure stock is sufficient atomically
-        const updateResult = await tx.product.updateMany({
-          where: {
-            id: it.productId,
-            currentStock: { gte: it.quantity }
-          },
+      const requiredByProduct = ch.items.reduce((map: Record<string, number>, item) => {
+        map[item.productId] = (map[item.productId] || 0) + item.quantity;
+        return map;
+      }, {});
+
+      const productIds = Object.keys(requiredByProduct);
+      const products = await tx.product.findMany({ where: { id: { in: productIds } } });
+
+      if (products.length !== productIds.length) {
+        throw { status: 422, message: 'One or more products in this challan no longer exist' };
+      }
+
+      for (const prod of products) {
+        const requiredQty = requiredByProduct[prod.id] || 0;
+        if (requiredQty > prod.currentStock) {
+          throw { status: 409, message: `Insufficient stock for ${prod.name}` };
+        }
+      }
+
+      for (const prod of products) {
+        const decrementQty = requiredByProduct[prod.id];
+        await tx.product.update({
+          where: { id: prod.id },
           data: {
-            currentStock: { decrement: it.quantity }
+            currentStock: { decrement: decrementQty }
           }
         });
 
-        if (updateResult.count === 0) {
-          throw { status: 409, message: `Insufficient stock for ${it.productName}` };
-        }
-
         await tx.stockMovement.create({
           data: {
-            productId: it.productId,
-            quantity: it.quantity,
+            productId: prod.id,
+            quantity: decrementQty,
             movementType: 'OUT',
             reason: `Challan ${ch.challanNumber}`,
             userId: req.user.id

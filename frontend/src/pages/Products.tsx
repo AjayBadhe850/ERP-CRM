@@ -6,6 +6,7 @@ export default function Products(){
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [editingProduct, setEditingProduct] = useState<any>(null)
 
   async function load(){
     setLoading(true)
@@ -31,6 +32,7 @@ export default function Products(){
             style={{ width: 240, marginBottom: 0 }}
           />
           <button className="primary" onClick={load}>Search</button>
+          <button className="secondary" onClick={() => setEditingProduct(null)}>Add Product</button>
         </div>
       </div>
 
@@ -44,6 +46,7 @@ export default function Products(){
                 <th>Category</th>
                 <th className="text-right">Price</th>
                 <th className="text-right">Stock</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -69,6 +72,9 @@ export default function Products(){
                         <div style={{ fontSize: 10, color: 'var(--danger)' }}>Low Stock</div>
                       )}
                     </td>
+                    <td>
+                      <button type="button" className="secondary" style={{ padding: '6px 10px', fontSize: 12 }} onClick={() => setEditingProduct(p)}>Edit Product</button>
+                    </td>
                   </tr>
                 ))
               )}
@@ -77,7 +83,11 @@ export default function Products(){
         </div>
 
         <div>
-          <ProductForm onSaved={load} />
+          <ProductForm
+            onSaved={load}
+            product={editingProduct}
+            onCancel={() => setEditingProduct(null)}
+          />
         </div>
       </div>
     </div>
